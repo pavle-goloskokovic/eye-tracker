@@ -7,10 +7,11 @@ import type { Config } from '../config';
 //
 // Mirrors the behaviour of the original Camera.cpp:
 //
-//   - the detector runs every N video frames
+//   - the detector runs on a timer: faster while tracking a
+//     face, slower while idle
 //   - with no lock, the biggest face wins
 //   - once locked, the face nearest the previous one wins
-//   - the lock drops after N misses or a timeout
+//   - the lock drops after a timeout without detections
 //
 // With the GPU delegate the video element is handed straight to
 // MediaPipe, which resizes on the GPU. With the CPU delegate the
@@ -68,16 +69,17 @@ export class FaceTracker {
   private targetLocked = false;
   private lockedCenterX = 0;
   private lockedCenterY = 0;
-  private missedDetections = 0;
   private lastFaceSeen = performance.now();
 
-  private frameCounter = 0;
+  private lastDetectionTime = -Infinity;
   private lastVideoTime = -1;
   private lastTimestamp = 0;
 
   private fpsFrames = 0;
+  private fpsDetections = 0;
   private fpsTime = performance.now();
   private fps = 0;
+  private detectionsPerSecond = 0;
 
   constructor(settings: Config['tracking']) {
     this.settings = settings;
@@ -138,7 +140,7 @@ export class FaceTracker {
     this.clearLock();
     this.latest = { ...EMPTY_FACE };
     this.lastVideoTime = -1;
-    this.frameCounter = 0;
+    this.lastDetectionTime = -Infinity;
   }
 
   // --------------------------------------------------------
@@ -167,21 +169,27 @@ export class FaceTracker {
     }
 
     this.lastVideoTime = video.currentTime;
-    this.frameCounter++;
 
     const result: FacePosition = { ...this.latest };
 
     // The CPU path detects on a downscaled copy; the GPU path
     // reads the video directly.
     const useCanvas = this.delegate === 'CPU';
-    const runDetection = this.frameCounter >= this.settings.detectEveryNFrames;
+
+    // Detect on a timer, faster while tracking than while idle.
+    const interval = this.targetLocked
+      ? this.settings.detectIntervalTrackingMs
+      : this.settings.detectIntervalIdleMs;
+
+    const runDetection = now - this.lastDetectionTime >= interval;
 
     if (useCanvas && (runDetection || this.debugEnabled)) {
       this.drawFrame(video);
     }
 
     if (runDetection) {
-      this.frameCounter = 0;
+      this.lastDetectionTime = now;
+      this.fpsDetections++;
 
       const source = useCanvas ? this.canvas : video;
       const frameWidth = useCanvas ? this.canvas.width : video.videoWidth;
@@ -255,17 +263,7 @@ export class FaceTracker {
 
   private selectFace(faces: FaceBox[], result: FacePosition, now: number): void {
     if (faces.length === 0) {
-      this.missedDetections++;
-
-      if (this.missedDetections >= this.settings.maxMissedDetections) {
-        if (this.targetLocked) {
-          console.log('Target lost - searching again');
-        }
-
-        this.targetLocked = false;
-        this.missedDetections = 0;
-      }
-
+      // Misses are handled by the timeout in update().
       return;
     }
 
@@ -311,7 +309,6 @@ export class FaceTracker {
     this.lockedCenterY = centerY;
     this.lastFaceSeen = now;
     this.targetLocked = true;
-    this.missedDetections = 0;
 
     result.detected = true;
     result.x = centerX * 2 - 1;
@@ -331,7 +328,6 @@ export class FaceTracker {
 
   private clearLock(): void {
     this.targetLocked = false;
-    this.missedDetections = 0;
     this.lockedCenterX = 0;
     this.lockedCenterY = 0;
   }
@@ -362,7 +358,9 @@ export class FaceTracker {
 
     if (elapsed >= 1) {
       this.fps = this.fpsFrames / elapsed;
+      this.detectionsPerSecond = this.fpsDetections / elapsed;
       this.fpsFrames = 0;
+      this.fpsDetections = 0;
       this.fpsTime = now;
     }
   }
@@ -390,6 +388,10 @@ export class FaceTracker {
     ctx.fillStyle = '#00ff00';
     ctx.font = 'bold 18px sans-serif';
     ctx.textBaseline = 'top';
-    ctx.fillText(`FPS: ${Math.round(this.fps)} (${this.delegate})`, 10, 10);
+    ctx.fillText(
+      `FPS: ${Math.round(this.fps)}  det/s: ${this.detectionsPerSecond.toFixed(1)}  (${this.delegate})`,
+      10,
+      10,
+    );
   }
 }

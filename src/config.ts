@@ -24,16 +24,20 @@ export interface Config {
     // Targets smaller than this are treated as centre.
     deadZone: number;
 
-    // Detector input size and cadence.
+    // Detector input size (debug preview and CPU fallback).
     detectWidth: number;
     detectHeight: number;
-    detectEveryNFrames: number;
+
+    // How often the detector runs, in milliseconds, while a face
+    // is being tracked and while idle. Idle can be much slower
+    // since nothing depends on latency until someone shows up.
+    detectIntervalTrackingMs: number;
+    detectIntervalIdleMs: number;
 
     // Detector confidence threshold (0..1).
     minConfidence: number;
 
-    // Lock handling.
-    maxMissedDetections: number;
+    // Seconds without a detection before the face is dropped.
     faceTimeoutSeconds: number;
 
     // Mirror the camera image horizontally.
@@ -99,9 +103,9 @@ export const DEFAULT_CONFIG: Config = {
     deadZone: 0.03,
     detectWidth: 320,
     detectHeight: 240,
-    detectEveryNFrames: 3,
+    detectIntervalTrackingMs: 120,
+    detectIntervalIdleMs: 300,
     minConfidence: 0.6,
-    maxMissedDetections: 8,
     faceTimeoutSeconds: 1.0,
     mirror: true,
   },

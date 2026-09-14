@@ -117,9 +117,11 @@ fall back to the defaults in `src/config.ts`.
 
 - `camera.offsetX/Y` is a normalized bias (-1..1) added to the detected face position.
 - `tracking.maxYaw/maxPitch` are the maximum rotation angles in degrees.
-- `tracking.smoothing`, `deadZone`, `detectEveryNFrames`, `detectWidth/Height`,
-  `minConfidence`, `maxMissedDetections`, `faceTimeoutSeconds` and `mirror`
-  tune the tracker.
+- `tracking.detectIntervalTrackingMs` and `detectIntervalIdleMs` set how
+  often the detector runs while following a face and while nobody is
+  present (defaults 120 and 300). Raise them on slow hardware.
+- `tracking.smoothing`, `deadZone`, `detectWidth/Height`, `minConfidence`,
+  `faceTimeoutSeconds` and `mirror` tune the rest of the tracker.
 - `idle.*` controls the random look-around when nobody is present.
 - `background.r/g/b` is the clear colour when no background video plays.
 - `rendering.transmission` switches the outer shell between a transmissive
