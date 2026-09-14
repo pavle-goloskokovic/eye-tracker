@@ -156,6 +156,7 @@ export class FaceTracker {
   // Forget all tracks, e.g. when the input source changes.
   reset(): void {
     this.tracks = [];
+    this.nextTrackId = 1;
     this.focusId = null;
     this.latest = { ...EMPTY_FACE };
     this.lastVideoTime = -1;
@@ -234,6 +235,11 @@ export class FaceTracker {
         const h = box.height / frameHeight;
         const x = box.originX / frameWidth;
         const y = box.originY / frameHeight;
+
+        // Tiny boxes are almost always false positives.
+        if (w < this.settings.minFaceSize) {
+          continue;
+        }
 
         faces.push({
           x: this.settings.mirror ? 1 - x - w : x,
@@ -346,6 +352,13 @@ export class FaceTracker {
 
       return alive;
     });
+
+    // Ids must stay unique while faces are present (that is how a
+    // newcomer is told apart from someone already here), but they
+    // can start over once the scene is empty.
+    if (this.tracks.length === 0) {
+      this.nextTrackId = 1;
+    }
   }
 
   // --------------------------------------------------------

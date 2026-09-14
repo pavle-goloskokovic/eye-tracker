@@ -22,11 +22,23 @@ interface Manifest {
   videos?: string[];
 }
 
+export interface BackgroundOptions {
+  // Upload frames through a canvas instead of binding the video
+  // element directly. Three's WebGPU backend binds videos as
+  // external textures, which Firefox's WebGPU does not fully
+  // support yet; the canvas path works everywhere.
+  copyThroughCanvas: boolean;
+}
+
 export class Background {
   readonly video: HTMLVideoElement;
-  readonly texture: THREE.VideoTexture;
+  readonly texture: THREE.Texture;
 
   private readonly settings: Config['background'];
+
+  private readonly canvas: HTMLCanvasElement | null = null;
+  private readonly canvasContext: CanvasRenderingContext2D | null = null;
+  private lastCopiedTime = -1;
 
   private playlist: string[] = [];
   private currentIndex = 0;
@@ -37,7 +49,7 @@ export class Background {
   private rescanTimer = 0;
   private opened = false;
 
-  constructor(settings: Config['background']) {
+  constructor(settings: Config['background'], options: BackgroundOptions) {
     this.settings = settings;
 
     this.video = document.createElement('video');
@@ -52,11 +64,53 @@ export class Background {
       void this.next();
     });
 
-    this.texture = new THREE.VideoTexture(this.video);
+    if (options.copyThroughCanvas) {
+      this.canvas = document.createElement('canvas');
+      this.canvas.width = 2;
+      this.canvas.height = 2;
+      this.canvasContext = this.canvas.getContext('2d');
+      this.texture = new THREE.CanvasTexture(this.canvas);
+    } else {
+      this.texture = new THREE.VideoTexture(this.video);
+    }
+
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.minFilter = THREE.LinearFilter;
     this.texture.magFilter = THREE.LinearFilter;
     this.texture.generateMipmaps = false;
+  }
+
+  // Width and height of the current frame, or null if none yet.
+  get frameSize(): { width: number; height: number } | null {
+    if (this.video.videoWidth === 0) {
+      return null;
+    }
+
+    return { width: this.video.videoWidth, height: this.video.videoHeight };
+  }
+
+  // Call once per rendered frame. Copies the latest video frame
+  // into the canvas when the canvas path is in use.
+  update(): void {
+    if (!this.canvas || !this.canvasContext || !this.isPlaying) {
+      return;
+    }
+
+    const { video } = this;
+
+    if (video.currentTime === this.lastCopiedTime) {
+      return;
+    }
+
+    this.lastCopiedTime = video.currentTime;
+
+    if (this.canvas.width !== video.videoWidth || this.canvas.height !== video.videoHeight) {
+      this.canvas.width = video.videoWidth;
+      this.canvas.height = video.videoHeight;
+    }
+
+    this.canvasContext.drawImage(video, 0, 0);
+    this.texture.needsUpdate = true;
   }
 
   get isPlaying(): boolean {

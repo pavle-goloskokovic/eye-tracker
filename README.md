@@ -31,7 +31,8 @@ detected, the eye locks onto that person and follows them.
 ## Requirements
 
 - Node.js 20 or newer (for building)
-- A browser with WebGL 2 or WebGPU. Chrome or Chromium is recommended.
+- A browser with WebGL 2 or WebGPU. Chrome or Chromium is recommended;
+  Firefox works on either backend.
 - Camera access requires HTTPS or `localhost`.
 
 ## Getting started
@@ -132,9 +133,11 @@ fall back to the defaults in `src/config.ts`.
 - `tracking.focusHoldMinSeconds` / `focusHoldMaxSeconds` set the random hold
   time before the eye moves on to the next person when several are present.
   A newly arrived face always gets looked at immediately.
-- `tracking.matchDistance`, `newFaceConfirmations`, `detectWidth/Height`,
-  `minConfidence`, `faceTimeoutSeconds` and `mirror` tune the rest of the
-  tracker.
+- `tracking.minConfidence` (default 0.6), `minFaceSize` (default 0.05 of the
+  frame width) and `newFaceConfirmations` (default 3) filter false positives.
+  Raise them if phantom faces appear, lower them if real faces are missed.
+- `tracking.matchDistance`, `detectWidth/Height`, `faceTimeoutSeconds` and
+  `mirror` tune the rest of the tracker.
 - `motion.smoothingNear` / `smoothingFar` control how quickly the eye moves
   for small corrections and for big glances. `motion.microSaccade*` add tiny
   random fixation shifts; set the amplitude to `0` to disable them.

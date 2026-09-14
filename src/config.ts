@@ -30,8 +30,12 @@ export interface Config {
     detectIntervalTrackingMs: number;
     detectIntervalIdleMs: number;
 
-    // Detector confidence threshold (0..1).
+    // Detector confidence threshold (0..1). Raise it if you see
+    // false positives, lower it if real faces are missed.
     minConfidence: number;
+
+    // Ignore detections narrower than this fraction of the frame.
+    minFaceSize: number;
 
     // Seconds without a detection before a face is dropped.
     faceTimeoutSeconds: number;
@@ -130,10 +134,11 @@ export const DEFAULT_CONFIG: Config = {
     detectHeight: 240,
     detectIntervalTrackingMs: 120,
     detectIntervalIdleMs: 300,
-    minConfidence: 0.5,
+    minConfidence: 0.6,
+    minFaceSize: 0.05,
     faceTimeoutSeconds: 1.0,
     matchDistance: 0.2,
-    newFaceConfirmations: 2,
+    newFaceConfirmations: 3,
     focusHoldMinSeconds: 3,
     focusHoldMaxSeconds: 7,
     mirror: true,

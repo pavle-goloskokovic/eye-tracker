@@ -34,6 +34,18 @@ export class EyeScene {
 
   private readonly eyeGroup = new THREE.Group();
 
+  // Screen-filling plane parented to the camera. Using our own
+  // plane instead of scene.background lets the video keep its
+  // aspect ratio (cover-style crop) in any viewport shape.
+  private readonly backgroundMaterial: THREE.MeshBasicMaterial;
+  private readonly backgroundMesh: THREE.Mesh;
+  private backgroundAspect = 16 / 9;
+
+  // Vertical FOV in landscape; becomes the horizontal FOV in
+  // portrait so the eye never gets cut off.
+  private static readonly BASE_FOV = 50;
+  private static readonly BACKGROUND_DISTANCE = 50;
+
   private smoothX = 0;
   private smoothY = 0;
 
@@ -73,13 +85,33 @@ export class EyeScene {
     this.scene.background = this.clearColor;
 
     this.camera = new THREE.PerspectiveCamera(
-      50,
+      EyeScene.BASE_FOV,
       window.innerWidth / window.innerHeight,
       0.1,
       100,
     );
     this.camera.position.set(0, 0, 3);
     this.camera.lookAt(0, 0, 0);
+
+    // The camera must be in the scene for its children to render.
+    this.scene.add(this.camera);
+
+    this.backgroundMaterial = new THREE.MeshBasicMaterial({
+      color: this.clearColor,
+      depthWrite: false,
+      depthTest: false,
+      toneMapped: false,
+    });
+
+    this.backgroundMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.backgroundMaterial);
+    this.backgroundMesh.position.z = -EyeScene.BACKGROUND_DISTANCE;
+    this.backgroundMesh.renderOrder = -1000;
+    this.backgroundMesh.frustumCulled = false;
+    this.backgroundMesh.visible = false;
+
+    this.camera.add(this.backgroundMesh);
+
+    this.updateCamera();
 
     // Rotate around Y first (yaw) then X (pitch), matching
     // glm::rotate(yaw, Y) * glm::rotate(pitch, X).
@@ -234,8 +266,72 @@ export class EyeScene {
   // Background
   // --------------------------------------------------------
 
-  setBackgroundTexture(texture: THREE.Texture | null): void {
-    this.scene.background = texture ?? this.clearColor;
+  setBackgroundTexture(
+    texture: THREE.Texture | null,
+    frameSize: { width: number; height: number } | null = null,
+  ): void {
+    const material = this.backgroundMaterial;
+
+    if (material.map !== texture) {
+      material.map = texture;
+      material.color.set(texture ? 0xffffff : this.clearColor);
+      material.needsUpdate = true;
+
+      this.backgroundMesh.visible = texture !== null;
+    }
+
+    // Keep the plane's aspect in step with the video's.
+    if (texture && frameSize && frameSize.width > 0 && frameSize.height > 0) {
+      const aspect = frameSize.width / frameSize.height;
+
+      if (Math.abs(aspect - this.backgroundAspect) > 1e-3) {
+        this.backgroundAspect = aspect;
+        this.layoutBackground();
+      }
+    }
+  }
+
+  // --------------------------------------------------------
+  // Camera / viewport
+  // --------------------------------------------------------
+
+  private updateCamera(): void {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const aspect = width / height;
+
+    // Landscape: BASE_FOV is the vertical FOV. Portrait: keep
+    // BASE_FOV as the horizontal FOV instead, so the eye fits the
+    // narrower dimension rather than being cropped at the sides.
+    let fov = EyeScene.BASE_FOV;
+
+    if (aspect < 1) {
+      const halfHorizontal = THREE.MathUtils.degToRad(EyeScene.BASE_FOV / 2);
+
+      fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfHorizontal) / aspect));
+    }
+
+    this.camera.fov = fov;
+    this.camera.aspect = aspect;
+    this.camera.updateProjectionMatrix();
+
+    this.layoutBackground();
+  }
+
+  // Size the background plane to fill the view at its distance,
+  // then enlarge one axis so the video covers the viewport
+  // without distortion (like CSS object-fit: cover).
+  private layoutBackground(): void {
+    const distance = EyeScene.BACKGROUND_DISTANCE;
+    const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const viewWidth = viewHeight * this.camera.aspect;
+    const viewAspect = viewWidth / viewHeight;
+
+    if (viewAspect > this.backgroundAspect) {
+      this.backgroundMesh.scale.set(viewWidth, viewWidth / this.backgroundAspect, 1);
+    } else {
+      this.backgroundMesh.scale.set(viewHeight * this.backgroundAspect, viewHeight, 1);
+    }
   }
 
   // --------------------------------------------------------
@@ -322,13 +418,8 @@ export class EyeScene {
   }
 
   private onResize(): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.updateCamera();
   }
 
   dispose(): void {

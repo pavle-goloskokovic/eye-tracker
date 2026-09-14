@@ -18,7 +18,8 @@ export class TextOverlay {
     this.element = element;
     this.settings = settings;
 
-    element.style.fontSize = `${settings.fontSizePx}px`;
+    // Cap by viewport width so the line fits on narrow screens.
+    element.style.fontSize = `min(${settings.fontSizePx}px, 6.5vw)`;
   }
 
   setVisible(visible: boolean): void {

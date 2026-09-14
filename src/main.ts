@@ -52,7 +52,12 @@ async function main(): Promise<void> {
 
     setStatus('Loading backgrounds…');
 
-    const background = new Background(config.background);
+    // On WebGPU, upload video frames via a canvas: Three binds
+    // videos as external textures there, which Firefox's WebGPU
+    // does not fully support yet.
+    const background = new Background(config.background, {
+      copyThroughCanvas: eye.backend === 'WebGPU',
+    });
 
     await background.start();
 
@@ -153,7 +158,12 @@ async function main(): Promise<void> {
         text.update(config.text.message);
       }
 
-      eye.setBackgroundTexture(background.isPlaying ? background.texture : null);
+      background.update();
+
+      eye.setBackgroundTexture(
+        background.isPlaying ? background.texture : null,
+        background.frameSize,
+      );
 
       eye.render(face);
     });
