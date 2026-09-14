@@ -93,6 +93,13 @@ The manifest is re-read every few seconds. Existing entries keep their
 shuffled order, new entries are appended, and new entries whose name starts
 with `01_` are queued to play next.
 
+Two placeholder clips ship with the project: a CRT television showing static
+(["Analog TV noise"](https://commons.wikimedia.org/wiki/File:Analog_TV_noise.ogv)
+by JussiClone, CC BY-SA 3.0) and full-frame VHS tape static
+(["FREE real VHS static"](https://commons.wikimedia.org/wiki/File:FREE_real_VHS_static.webm)
+by Caleb Minear, CC0), both trimmed and re-encoded. See
+`public/assets/backgrounds/README.md` for details.
+
 For best results on low-end hardware, encode backgrounds at 640x360, 24 fps,
 H.264, with no audio.
 
