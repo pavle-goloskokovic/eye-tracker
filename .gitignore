@@ -1,31 +1,14 @@
-# CMake / build output
-build/
-cmake-build-*/
-
-# Compiled binary
-EyeTracker
-
-# CMake generated files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-
-# Object / library files
-*.o
-*.a
-*.so
-
-# Debugging
-core
-core.*
-
-# Editor files
-.vscode/
+# Editor / IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 
 # OS junk
 .DS_Store
-assets/backgrounds/
+Thumbs.db
+
+# Web project (to be added during port)
+node_modules/
+dist/
+.vite/
