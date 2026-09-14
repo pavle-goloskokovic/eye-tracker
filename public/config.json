@@ -1,0 +1,23 @@
+{
+  "camera": {
+    "offsetX": 0,
+    "offsetY": 0
+  },
+  "tracking": {
+    "maxYaw": 24,
+    "maxPitch": 21
+  },
+  "background": {
+    "r": 0.04,
+    "g": 0.04,
+    "b": 0.04
+  },
+  "text": {
+    "message": "IM LOOKING AT YOU."
+  },
+  "rendering": {
+    "transmission": true,
+    "normalScale": 1.0,
+    "forceWebGL": false
+  }
+}
