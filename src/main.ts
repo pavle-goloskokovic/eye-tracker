@@ -72,7 +72,9 @@ async function main(): Promise<void> {
 
     await tracker.init();
 
-    const debug = new DebugView(element('debug'), tracker.canvas);
+    const debug = new DebugView(element('debug'), tracker.canvas, (visible) =>
+      tracker.setDebugEnabled(visible),
+    );
 
     // ----------------------------------------------------
     // Input source
@@ -126,7 +128,23 @@ async function main(): Promise<void> {
     // Frame loop
     // ----------------------------------------------------
 
-    eye.renderer.setAnimationLoop(() => {
+    // Cap the frame rate: the tracker runs at the video's rate
+    // and smoothing hides the difference, so rendering faster
+    // than ~30 fps only burns GPU time.
+    const frameInterval = config.rendering.maxFps > 0 ? 1000 / config.rendering.maxFps : 0;
+
+    let lastFrameTime = 0;
+
+    eye.renderer.setAnimationLoop((time) => {
+      if (frameInterval > 0) {
+        // Snap to the interval grid so drift does not accumulate.
+        if (time - lastFrameTime < frameInterval - 1) {
+          return;
+        }
+
+        lastFrameTime = time - ((time - lastFrameTime) % frameInterval);
+      }
+
       const face = tracker.update(source?.video ?? null);
 
       text.setVisible(face.detected);

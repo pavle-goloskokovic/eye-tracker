@@ -7,11 +7,16 @@ import type { Config } from '../config';
 //
 // Mirrors the behaviour of the original Camera.cpp:
 //
-//   - frames are downscaled (and mirrored) into a small canvas
-//   - the detector runs every N frames
+//   - the detector runs every N video frames
 //   - with no lock, the biggest face wins
 //   - once locked, the face nearest the previous one wins
 //   - the lock drops after N misses or a timeout
+//
+// With the GPU delegate the video element is handed straight to
+// MediaPipe, which resizes on the GPU. With the CPU delegate the
+// frame is first downscaled into a small canvas to keep the
+// conversion cheap. Mirroring is applied to the results, not the
+// pixels, so no per-frame copy is needed for tracking.
 // ------------------------------------------------------------
 
 export interface FaceBox {
@@ -30,10 +35,10 @@ export interface FacePosition {
   x: number;
   y: number;
 
-  // Face width relative to the detector frame width.
+  // Face width relative to the frame width.
   size: number;
 
-  // Box in detector-canvas pixels (for the debug view).
+  // Box in normalized (0..1) frame coordinates, already mirrored.
   box: FaceBox | null;
 }
 
@@ -46,7 +51,7 @@ const EMPTY_FACE: FacePosition = {
 };
 
 export class FaceTracker {
-  // Detector input; also doubles as the debug preview.
+  // Debug preview (and detector input on the CPU path).
   readonly canvas: HTMLCanvasElement;
 
   private readonly ctx: CanvasRenderingContext2D;
@@ -54,6 +59,9 @@ export class FaceTracker {
 
   private detector: FaceDetector | null = null;
   private delegate: 'GPU' | 'CPU' = 'GPU';
+
+  // When false, nothing is drawn into the canvas.
+  private debugEnabled = false;
 
   private latest: FacePosition = { ...EMPTY_FACE };
 
@@ -78,7 +86,7 @@ export class FaceTracker {
     this.canvas.width = settings.detectWidth;
     this.canvas.height = settings.detectHeight;
 
-    const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = this.canvas.getContext('2d');
 
     if (!ctx) {
       throw new Error('Could not create 2D canvas context.');
@@ -89,6 +97,10 @@ export class FaceTracker {
 
   get backend(): string {
     return this.delegate;
+  }
+
+  setDebugEnabled(enabled: boolean): void {
+    this.debugEnabled = enabled;
   }
 
   // --------------------------------------------------------
@@ -155,55 +167,54 @@ export class FaceTracker {
     }
 
     this.lastVideoTime = video.currentTime;
-
-    // ----------------------------------------------------
-    // Downscale (and mirror) into the detector canvas
-    // ----------------------------------------------------
-
-    const { width, height } = this.canvas;
-    const ctx = this.ctx;
-
-    ctx.save();
-
-    if (this.settings.mirror) {
-      ctx.translate(width, 0);
-      ctx.scale(-1, 1);
-    }
-
-    ctx.drawImage(video, 0, 0, width, height);
-    ctx.restore();
-
-    // ----------------------------------------------------
-    // Detect every N frames
-    // ----------------------------------------------------
-
     this.frameCounter++;
 
     const result: FacePosition = { ...this.latest };
 
-    if (this.frameCounter >= this.settings.detectEveryNFrames) {
+    // The CPU path detects on a downscaled copy; the GPU path
+    // reads the video directly.
+    const useCanvas = this.delegate === 'CPU';
+    const runDetection = this.frameCounter >= this.settings.detectEveryNFrames;
+
+    if (useCanvas && (runDetection || this.debugEnabled)) {
+      this.drawFrame(video);
+    }
+
+    if (runDetection) {
       this.frameCounter = 0;
+
+      const source = useCanvas ? this.canvas : video;
+      const frameWidth = useCanvas ? this.canvas.width : video.videoWidth;
+      const frameHeight = useCanvas ? this.canvas.height : video.videoHeight;
 
       // MediaPipe requires strictly increasing timestamps.
       const timestamp = Math.max(now, this.lastTimestamp + 1);
 
       this.lastTimestamp = timestamp;
 
-      const detections = this.detector.detectForVideo(this.canvas, timestamp).detections;
+      const detections = this.detector.detectForVideo(source, timestamp).detections;
 
       const faces: FaceBox[] = [];
 
       for (const detection of detections) {
         const box = detection.boundingBox;
 
-        if (box) {
-          faces.push({
-            x: box.originX,
-            y: box.originY,
-            w: box.width,
-            h: box.height,
-          });
+        if (!box) {
+          continue;
         }
+
+        // Normalize to 0..1 and mirror if requested.
+        const w = box.width / frameWidth;
+        const h = box.height / frameHeight;
+        const x = box.originX / frameWidth;
+        const y = box.originY / frameHeight;
+
+        faces.push({
+          x: this.settings.mirror ? 1 - x - w : x,
+          y,
+          w,
+          h,
+        });
       }
 
       this.selectFace(faces, result, now);
@@ -226,7 +237,14 @@ export class FaceTracker {
     this.latest = result;
 
     this.updateFps(now);
-    this.drawDebug(result);
+
+    if (this.debugEnabled) {
+      if (!useCanvas) {
+        this.drawFrame(video);
+      }
+
+      this.drawDebug(result);
+    }
 
     return this.latest;
   }
@@ -296,9 +314,9 @@ export class FaceTracker {
     this.missedDetections = 0;
 
     result.detected = true;
-    result.x = (centerX / this.canvas.width) * 2 - 1;
-    result.y = (centerY / this.canvas.height) * 2 - 1;
-    result.size = face.w / this.canvas.width;
+    result.x = centerX * 2 - 1;
+    result.y = centerY * 2 - 1;
+    result.size = face.w;
     result.box = { ...face };
   }
 
@@ -319,8 +337,23 @@ export class FaceTracker {
   }
 
   // --------------------------------------------------------
-  // Debug overlay drawn on the detector canvas
+  // Canvas drawing (CPU detector input and debug preview)
   // --------------------------------------------------------
+
+  private drawFrame(video: HTMLVideoElement): void {
+    const { width, height } = this.canvas;
+    const ctx = this.ctx;
+
+    ctx.save();
+
+    if (this.settings.mirror) {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+    ctx.restore();
+  }
 
   private updateFps(now: number): void {
     this.fpsFrames++;
@@ -336,9 +369,13 @@ export class FaceTracker {
 
   private drawDebug(face: FacePosition): void {
     const ctx = this.ctx;
+    const { width, height } = this.canvas;
 
     if (face.detected && face.box) {
-      const { x, y, w, h } = face.box;
+      const x = face.box.x * width;
+      const y = face.box.y * height;
+      const w = face.box.w * width;
+      const h = face.box.h * height;
 
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 2;

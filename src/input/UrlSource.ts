@@ -1,4 +1,4 @@
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
 
 import {
   createVideoElement,
@@ -77,18 +77,22 @@ export class UrlSource implements VideoSource {
       return;
     }
 
-    if (!Hls.isSupported()) {
+    // hls.js is a large library only needed for HLS streams, so
+    // it is loaded on demand.
+    const { default: HlsLib } = await import('hls.js');
+
+    if (!HlsLib.isSupported()) {
       throw new Error('HLS playback is not supported in this browser.');
     }
 
-    const hls = new Hls({ enableWorker: true });
+    const hls = new HlsLib({ enableWorker: true });
 
     this.hls = hls;
 
     await new Promise<void>((resolve, reject) => {
-      hls.on(Hls.Events.MANIFEST_PARSED, () => resolve());
+      hls.on(HlsLib.Events.MANIFEST_PARSED, () => resolve());
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
+      hls.on(HlsLib.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           reject(new Error(`HLS error: ${data.details}`));
         }

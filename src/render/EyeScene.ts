@@ -133,8 +133,8 @@ export class EyeScene {
 
     const [gltf, baseColor, normal] = await Promise.all([
       new GLTFLoader().loadAsync('/assets/eye.glb'),
-      textureLoader.loadAsync('/assets/eye_basecolor.png'),
-      textureLoader.loadAsync('/assets/eye_normal.png'),
+      textureLoader.loadAsync('/assets/eye_basecolor.webp'),
+      textureLoader.loadAsync('/assets/eye_normal.webp'),
     ]);
 
     // The GLB's UVs follow the glTF convention (v=0 at the top of
@@ -157,7 +157,16 @@ export class EyeScene {
       metalness: 0.0,
     });
 
-    const shell = this.config.rendering.transmission
+    // The transmissive shell renders the scene to a texture every
+    // frame, so on the WebGL fallback (typically weaker hardware)
+    // 'auto' picks the cheap shell instead.
+    const transmissionSetting = this.config.rendering.transmission;
+    const useTransmission =
+      transmissionSetting === 'auto' ? this.backend === 'WebGPU' : transmissionSetting;
+
+    console.log('Outer shell:', useTransmission ? 'transmission' : 'simple');
+
+    const shell = useTransmission
       ? new THREE.MeshPhysicalMaterial({
           color: 0xffffff,
           transmission: 1.0,

@@ -67,10 +67,11 @@ export interface Config {
   };
 
   rendering: {
-    // Use a physically based transmissive glass shell for the
-    // outer eye. Heavier on low-end GPUs; set false for a cheap
-    // translucent shell instead.
-    transmission: boolean;
+    // Outer eye shell material:
+    //   true   physically based transmissive glass (heavier)
+    //   false  cheap translucent shell
+    //   'auto' glass on WebGPU, cheap shell on the WebGL fallback
+    transmission: boolean | 'auto';
 
     // Strength of the normal map on the eyeball.
     normalScale: number;
@@ -80,6 +81,9 @@ export interface Config {
 
     // Upper bound for devicePixelRatio.
     maxPixelRatio: number;
+
+    // Frame rate cap for rendering. 0 = display refresh rate.
+    maxFps: number;
   };
 }
 
@@ -121,10 +125,11 @@ export const DEFAULT_CONFIG: Config = {
     fontSizePx: 48,
   },
   rendering: {
-    transmission: true,
+    transmission: 'auto',
     normalScale: 1.0,
     forceWebGL: false,
-    maxPixelRatio: 2,
+    maxPixelRatio: 1.5,
+    maxFps: 30,
   },
 };
 

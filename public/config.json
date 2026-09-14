@@ -16,8 +16,10 @@
     "message": "IM LOOKING AT YOU."
   },
   "rendering": {
-    "transmission": true,
+    "transmission": "auto",
     "normalScale": 1.0,
-    "forceWebGL": false
+    "forceWebGL": false,
+    "maxPixelRatio": 1.5,
+    "maxFps": 30
   }
 }

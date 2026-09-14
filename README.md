@@ -105,7 +105,13 @@ fall back to the defaults in `src/config.ts`.
   "tracking": { "maxYaw": 24, "maxPitch": 21 },
   "background": { "r": 0.04, "g": 0.04, "b": 0.04 },
   "text": { "message": "IM LOOKING AT YOU." },
-  "rendering": { "transmission": true, "normalScale": 1.0, "forceWebGL": false }
+  "rendering": {
+    "transmission": "auto",
+    "normalScale": 1.0,
+    "forceWebGL": false,
+    "maxPixelRatio": 1.5,
+    "maxFps": 30
+  }
 }
 ```
 
@@ -117,7 +123,12 @@ fall back to the defaults in `src/config.ts`.
 - `idle.*` controls the random look-around when nobody is present.
 - `background.r/g/b` is the clear colour when no background video plays.
 - `rendering.transmission` switches the outer shell between a transmissive
-  glass material and a cheaper translucent one.
+  glass material (`true`), a cheaper translucent one (`false`), or `"auto"`,
+  which uses glass on WebGPU and the cheap shell on the WebGL fallback.
+- `rendering.maxFps` caps the render rate; `0` renders at the display refresh
+  rate. The tracker runs at the video's frame rate regardless.
+- `rendering.maxPixelRatio` limits the device pixel ratio. Use `1` on a
+  Raspberry Pi driving a 1080p display.
 - `rendering.forceWebGL` disables WebGPU.
 
 ## Raspberry Pi kiosk
@@ -146,8 +157,8 @@ EyeTracker/
 │   ├── config.json
 │   ├── assets/
 │   │   ├── eye.glb
-│   │   ├── eye_basecolor.png
-│   │   ├── eye_normal.png
+│   │   ├── eye_basecolor.webp
+│   │   ├── eye_normal.webp
 │   │   ├── backgrounds/       videos + manifest.json
 │   │   └── fonts/pixel.ttf
 │   └── models/
