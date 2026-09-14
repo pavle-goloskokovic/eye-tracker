@@ -18,7 +18,9 @@ detected, the eye locks onto that person and follows them.
 - 3D eye rendered with Three.js on WebGPU, falling back to WebGL
 - GLB model with base colour and normal-map textures
 - Physically based transmissive outer shell (optional cheap mode)
-- Smooth eye tracking with dead zone and perspective curve
+- Smooth eye tracking with dead zone, perspective curve and micro-saccades
+- Multiple people tracked separately; newcomers get attention first, then
+  focus rotates between people at random intervals
 - Random idle eye movement when no face is visible
 - Background video playlist, shuffled, with hot-reload from a manifest
 - Priority background videos using the `01_` filename prefix
@@ -120,8 +122,15 @@ fall back to the defaults in `src/config.ts`.
 - `tracking.detectIntervalTrackingMs` and `detectIntervalIdleMs` set how
   often the detector runs while following a face and while nobody is
   present (defaults 120 and 300). Raise them on slow hardware.
-- `tracking.smoothing`, `deadZone`, `detectWidth/Height`, `minConfidence`,
-  `faceTimeoutSeconds` and `mirror` tune the rest of the tracker.
+- `tracking.focusHoldMinSeconds` / `focusHoldMaxSeconds` set the random hold
+  time before the eye moves on to the next person when several are present.
+  A newly arrived face always gets looked at immediately.
+- `tracking.matchDistance`, `newFaceConfirmations`, `detectWidth/Height`,
+  `minConfidence`, `faceTimeoutSeconds` and `mirror` tune the rest of the
+  tracker.
+- `motion.smoothingNear` / `smoothingFar` control how quickly the eye moves
+  for small corrections and for big glances. `motion.microSaccade*` add tiny
+  random fixation shifts; set the amplitude to `0` to disable them.
 - `idle.*` controls the random look-around when nobody is present.
 - `background.r/g/b` is the clear colour when no background video plays.
 - `rendering.transmission` switches the outer shell between a transmissive

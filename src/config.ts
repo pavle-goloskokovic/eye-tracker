@@ -18,12 +18,6 @@ export interface Config {
     maxYaw: number;
     maxPitch: number;
 
-    // Per-frame smoothing factor (0..1). Higher = snappier.
-    smoothing: number;
-
-    // Targets smaller than this are treated as centre.
-    deadZone: number;
-
     // Detector input size (debug preview and CPU fallback).
     detectWidth: number;
     detectHeight: number;
@@ -37,11 +31,42 @@ export interface Config {
     // Detector confidence threshold (0..1).
     minConfidence: number;
 
-    // Seconds without a detection before the face is dropped.
+    // Seconds without a detection before a face is dropped.
     faceTimeoutSeconds: number;
+
+    // Multiple faces: a detection within this distance (normalized
+    // frame units, or one face width if larger) of an existing
+    // track is the same person.
+    matchDistance: number;
+
+    // Consecutive detections before a new face counts. Filters
+    // single-frame false positives.
+    newFaceConfirmations: number;
+
+    // With several people present, focus rotates to the next one
+    // after a random hold time in this range (seconds).
+    focusHoldMinSeconds: number;
+    focusHoldMaxSeconds: number;
 
     // Mirror the camera image horizontally.
     mirror: boolean;
+  };
+
+  motion: {
+    // Per-frame smoothing (0..1) for small corrections and for
+    // large moves such as switching to another face. Higher is
+    // snappier; the two are blended by distance to the target.
+    smoothingNear: number;
+    smoothingFar: number;
+
+    // Targets smaller than this are treated as centre.
+    deadZone: number;
+
+    // Tiny random fixation shifts so the eye never sits dead
+    // still. Amplitude in normalized units, timing in seconds.
+    microSaccadeAmplitude: number;
+    microSaccadeMinSeconds: number;
+    microSaccadeMaxSeconds: number;
   };
 
   idle: {
@@ -99,15 +124,25 @@ export const DEFAULT_CONFIG: Config = {
   tracking: {
     maxYaw: 24,
     maxPitch: 21,
-    smoothing: 0.1,
-    deadZone: 0.03,
     detectWidth: 320,
     detectHeight: 240,
     detectIntervalTrackingMs: 120,
     detectIntervalIdleMs: 300,
-    minConfidence: 0.6,
+    minConfidence: 0.5,
     faceTimeoutSeconds: 1.0,
+    matchDistance: 0.2,
+    newFaceConfirmations: 2,
+    focusHoldMinSeconds: 3,
+    focusHoldMaxSeconds: 7,
     mirror: true,
+  },
+  motion: {
+    smoothingNear: 0.1,
+    smoothingFar: 0.28,
+    deadZone: 0.03,
+    microSaccadeAmplitude: 0.025,
+    microSaccadeMinSeconds: 0.6,
+    microSaccadeMaxSeconds: 2.5,
   },
   idle: {
     rangeX: 0.5,

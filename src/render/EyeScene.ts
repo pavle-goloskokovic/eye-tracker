@@ -41,6 +41,12 @@ export class EyeScene {
   private idleInterval = 2.5;
   private lastIdleChange = performance.now();
 
+  // Small random fixation offsets so the eye never sits still.
+  private saccadeX = 0;
+  private saccadeY = 0;
+  private saccadeInterval = 1;
+  private lastSaccade = performance.now();
+
   private started = false;
 
   constructor(container: HTMLElement, config: Config) {
@@ -240,7 +246,8 @@ export class EyeScene {
       return;
     }
 
-    const { tracking, idle, camera } = this.config;
+    const { tracking, motion, idle, camera } = this.config;
+    const now = performance.now();
 
     let targetX: number;
     let targetY: number;
@@ -249,7 +256,6 @@ export class EyeScene {
       targetX = target.x + camera.offsetX;
       targetY = target.y + camera.offsetY;
     } else {
-      const now = performance.now();
       const elapsed = (now - this.lastIdleChange) / 1000;
 
       if (elapsed >= this.idleInterval) {
@@ -268,17 +274,38 @@ export class EyeScene {
     }
 
     // Small dead zone to ignore tiny detector jitter.
-    if (Math.abs(targetX) < tracking.deadZone) {
+    if (Math.abs(targetX) < motion.deadZone) {
       targetX = 0;
     }
 
-    if (Math.abs(targetY) < tracking.deadZone) {
+    if (Math.abs(targetY) < motion.deadZone) {
       targetY = 0;
     }
 
-    // Smooth movement.
-    this.smoothX += (targetX - this.smoothX) * tracking.smoothing;
-    this.smoothY += (targetY - this.smoothY) * tracking.smoothing;
+    // Micro-saccades: re-pick a tiny offset every so often.
+    if ((now - this.lastSaccade) / 1000 >= this.saccadeInterval) {
+      this.lastSaccade = now;
+
+      this.saccadeX = (Math.random() * 2 - 1) * motion.microSaccadeAmplitude;
+      this.saccadeY = (Math.random() * 2 - 1) * motion.microSaccadeAmplitude;
+
+      this.saccadeInterval =
+        motion.microSaccadeMinSeconds +
+        Math.random() * (motion.microSaccadeMaxSeconds - motion.microSaccadeMinSeconds);
+    }
+
+    targetX += this.saccadeX;
+    targetY += this.saccadeY;
+
+    // Smooth movement. Big moves (a new face, a switch between
+    // people) use the faster rate so they read as a deliberate
+    // glance; small corrections stay gentle.
+    const distance = Math.hypot(targetX - this.smoothX, targetY - this.smoothY);
+    const blend = Math.min(distance / 0.5, 1);
+    const smoothing = motion.smoothingNear + (motion.smoothingFar - motion.smoothingNear) * blend;
+
+    this.smoothX += (targetX - this.smoothX) * smoothing;
+    this.smoothY += (targetY - this.smoothY) * smoothing;
 
     // Perspective curve: a little extra travel near the edges.
     const perspectiveX = this.smoothX * (0.7 + 0.3 * Math.abs(this.smoothX));
