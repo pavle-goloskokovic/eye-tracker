@@ -1,3 +1,5 @@
+import { assetUrl } from './paths';
+
 // ------------------------------------------------------------
 // Runtime configuration
 //
@@ -154,8 +156,8 @@ export const DEFAULT_CONFIG: Config = {
     r: 0.04,
     g: 0.04,
     b: 0.04,
-    folder: '/assets/backgrounds/',
-    manifest: '/assets/backgrounds/manifest.json',
+    folder: 'assets/backgrounds/',
+    manifest: 'assets/backgrounds/manifest.json',
     rescanSeconds: 5,
   },
   text: {
@@ -201,7 +203,7 @@ function merge<T extends object>(base: T, override: DeepPartial<T> | undefined):
   return result as T;
 }
 
-export async function loadConfig(url = '/config.json'): Promise<Config> {
+export async function loadConfig(url = assetUrl('config.json')): Promise<Config> {
   try {
     const response = await fetch(url, { cache: 'no-store' });
 

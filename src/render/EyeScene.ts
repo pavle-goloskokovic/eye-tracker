@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import type { Config } from '../config';
+import { assetUrl } from '../paths';
 
 // ------------------------------------------------------------
 // Renders the 3D eye.
@@ -138,9 +139,9 @@ export class EyeScene {
     const textureLoader = new THREE.TextureLoader();
 
     const [gltf, baseColor, normal] = await Promise.all([
-      new GLTFLoader().loadAsync('/assets/eye.glb'),
-      textureLoader.loadAsync('/assets/eye_basecolor.webp'),
-      textureLoader.loadAsync('/assets/eye_normal.webp'),
+      new GLTFLoader().loadAsync(assetUrl('assets/eye.glb')),
+      textureLoader.loadAsync(assetUrl('assets/eye_basecolor.webp')),
+      textureLoader.loadAsync(assetUrl('assets/eye_normal.webp')),
     ]);
 
     // The GLB's UVs follow the glTF convention (v=0 at the top of

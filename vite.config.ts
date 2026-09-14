@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
 
+// Deploy base path. The GitHub Pages workflow sets BASE_PATH to
+// "/<repo>/" so the site works under a sub-path; local dev and
+// root deployments leave it unset.
+const base = process.env.BASE_PATH ?? '/';
+
 export default defineConfig({
+  base,
   resolve: {
     alias: [
       // Route the bare "three" import (used by addons such as GLTFLoader)

@@ -1,6 +1,7 @@
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 
 import type { Config } from '../config';
+import { assetUrl } from '../paths';
 
 // ------------------------------------------------------------
 // Face tracking
@@ -127,12 +128,12 @@ export class FaceTracker {
   // --------------------------------------------------------
 
   async init(): Promise<void> {
-    const fileset = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+    const fileset = await FilesetResolver.forVisionTasks(assetUrl('mediapipe/wasm'));
 
     const create = (delegate: 'GPU' | 'CPU') =>
       FaceDetector.createFromOptions(fileset, {
         baseOptions: {
-          modelAssetPath: '/models/blaze_face_short_range.tflite',
+          modelAssetPath: assetUrl('models/blaze_face_short_range.tflite'),
           delegate,
         },
         runningMode: 'VIDEO',

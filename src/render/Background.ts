@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 
 import type { Config } from '../config';
+import { assetUrl } from '../paths';
 
 // ------------------------------------------------------------
 // Background video playlist
@@ -124,7 +125,7 @@ export class Background {
       console.log('Priority video started:', name);
     }
 
-    this.video.src = this.settings.folder + encodeURIComponent(name);
+    this.video.src = assetUrl(this.settings.folder) + encodeURIComponent(name);
 
     try {
       await this.video.play();
@@ -160,7 +161,7 @@ export class Background {
     let found: string[];
 
     try {
-      const response = await fetch(this.settings.manifest, { cache: 'no-store' });
+      const response = await fetch(assetUrl(this.settings.manifest), { cache: 'no-store' });
 
       if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText}`);

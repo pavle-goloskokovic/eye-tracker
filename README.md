@@ -149,6 +149,26 @@ fall back to the defaults in `src/config.ts`.
   Raspberry Pi driving a 1080p display.
 - `rendering.forceWebGL` disables WebGPU.
 
+## Deploying to GitHub Pages
+
+The workflow in `.github/workflows/deploy.yml` builds the site and publishes
+it to GitHub Pages on every push to `main`. One-time setup in the repository:
+
+1. Open **Settings → Pages**.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+
+The next push to `main` (or a manual run from the Actions tab) deploys to
+`https://<user>.github.io/<repo>/`. The build sets `BASE_PATH` to the
+repository name so all asset URLs resolve under that sub-path. Pages serves
+over HTTPS, so webcam access works there.
+
+To build for a sub-path locally:
+
+```bash
+BASE_PATH=/eye-tracker/ npm run build
+npm run preview   # serves at http://localhost:4173/eye-tracker/
+```
+
 ## Raspberry Pi kiosk
 
 Build the site, serve `dist/` (for example with `npx serve dist` or nginx),
@@ -166,6 +186,7 @@ chromium-browser --kiosk --autoplay-policy=no-user-gesture-required \
 ```text
 EyeTracker/
 ├── index.html
+├── .github/workflows/deploy.yml   GitHub Pages deployment
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
