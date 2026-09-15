@@ -1,8 +1,27 @@
 import * as THREE from 'three/webgpu';
+import {
+  Fn,
+  atan,
+  cameraPosition,
+  dot,
+  float,
+  max,
+  normalWorld,
+  normalize,
+  positionWorld,
+  pow,
+  reflect,
+  select,
+  smoothstep,
+  texture,
+  uniform,
+  vec2,
+} from 'three/tsl';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import type { Config } from '../config';
 import { assetUrl } from '../paths';
+import { VideoFrameTexture } from './VideoFrameTexture';
 
 // ------------------------------------------------------------
 // Renders the 3D eye.
@@ -40,6 +59,12 @@ export class EyeScene {
   private readonly backgroundMaterial: THREE.MeshBasicMaterial;
   private readonly backgroundMesh: THREE.Mesh;
   private backgroundAspect = 16 / 9;
+
+  // Camera feed reflected on the eye surface.
+  private readonly reflectionFeed: VideoFrameTexture;
+  private readonly reflectionIntensity = uniform(0);
+  // Half angles (radians) the feed covers horizontally/vertically.
+  private readonly reflectionHalfAngle = uniform(new THREE.Vector2(1.2, 0.7));
 
   // Vertical FOV in landscape; becomes the horizontal FOV in
   // portrait so the eye never gets cut off.
@@ -110,6 +135,10 @@ export class EyeScene {
     this.backgroundMesh.visible = false;
 
     this.camera.add(this.backgroundMesh);
+
+    const feedWidth = config.reflection.feedMaxWidth;
+
+    this.reflectionFeed = new VideoFrameTexture(feedWidth, Math.round((feedWidth * 9) / 16));
 
     this.updateCamera();
 
@@ -185,7 +214,7 @@ export class EyeScene {
     normal.flipY = false;
     normal.colorSpace = THREE.NoColorSpace;
 
-    const eyeball = new THREE.MeshStandardMaterial({
+    const eyeball = new THREE.MeshStandardNodeMaterial({
       map: baseColor,
       normalMap: normal,
       normalScale: new THREE.Vector2(
@@ -195,6 +224,12 @@ export class EyeScene {
       roughness: 0.3,
       metalness: 0.0,
     });
+
+    if (this.config.reflection.enabled) {
+      // The eyeball carries the reflection so it shows even when
+      // the shell is the cheap translucent one.
+      eyeball.emissiveNode = this.createReflectionNode(1.0);
+    }
 
     // The transmissive shell renders the scene to a texture every
     // frame, so on the WebGL fallback (typically weaker hardware)
@@ -206,7 +241,7 @@ export class EyeScene {
     console.log('Outer shell:', useTransmission ? 'transmission' : 'simple');
 
     const shell = useTransmission
-      ? new THREE.MeshPhysicalMaterial({
+      ? new THREE.MeshPhysicalNodeMaterial({
           color: 0xffffff,
           transmission: 1.0,
           ior: 1.45,
@@ -218,7 +253,7 @@ export class EyeScene {
           specularIntensity: 1.0,
           side: THREE.FrontSide,
         })
-      : new THREE.MeshPhysicalMaterial({
+      : new THREE.MeshPhysicalNodeMaterial({
           color: 0xd9ebff,
           transparent: true,
           opacity: 0.22,
@@ -229,6 +264,11 @@ export class EyeScene {
           depthWrite: false,
           side: THREE.FrontSide,
         });
+
+    if (this.config.reflection.enabled && useTransmission) {
+      // A second, fainter copy on the glass shell adds depth.
+      shell.emissiveNode = this.createReflectionNode(0.5);
+    }
 
     const model = gltf.scene;
 
@@ -260,6 +300,87 @@ export class EyeScene {
     this.eyeGroup.add(model);
 
     console.log('Loaded model: /assets/eye.glb | mesh count:', meshCount);
+  }
+
+  // --------------------------------------------------------
+  // Camera-feed reflection
+  //
+  // The feed is treated as the surroundings in front of the eye,
+  // spanning `fieldOfView` degrees horizontally. For each surface
+  // point the view direction is reflected off the surface and the
+  // reflected direction's angles pick the feed pixel, like the
+  // wrapped reflection on a glossy ball. A Fresnel term makes it
+  // stronger toward the rim.
+  // --------------------------------------------------------
+
+  private createReflectionNode(scale: number) {
+    const { reflection } = this.config;
+    const feed = this.reflectionFeed.texture;
+
+    const centerStrength = float(reflection.centerStrength);
+    const rimStrength = float(reflection.rimStrength);
+    const mirrorSign = float(reflection.mirror ? -1 : 1);
+    const halfAngle = this.reflectionHalfAngle;
+    const intensity = this.reflectionIntensity;
+
+    return Fn(() => {
+      const n = normalize(normalWorld);
+      const v = normalize(cameraPosition.sub(positionWorld));
+      const r = reflect(v.negate(), n);
+
+      // Angles of the reflected direction around the forward axis.
+      const rz = max(r.z, 1e-4);
+      const angleX = atan(r.x.div(rz));
+      const angleY = atan(r.y.div(rz));
+
+      // Map angles to feed UVs (0..1), optionally mirrored.
+      const u = angleX.mul(mirrorSign).div(halfAngle.x).mul(0.5).add(0.5);
+      const w = angleY.div(halfAngle.y).mul(0.5).add(0.5);
+
+      // Soft fade at the feed edges and no reflection for rays
+      // pointing away from the viewer.
+      const inside = smoothstep(0.0, 0.1, u)
+        .mul(smoothstep(1.0, 0.9, u))
+        .mul(smoothstep(0.0, 0.1, w))
+        .mul(smoothstep(1.0, 0.9, w))
+        .mul(select(r.z.greaterThan(0.001), 1.0, 0.0));
+
+      const facing = max(dot(n, v), 0.0);
+      const fresnel = pow(float(1.0).sub(facing), 2.5);
+      const weight = centerStrength
+        .add(fresnel.mul(rimStrength))
+        .mul(intensity)
+        .mul(inside)
+        .mul(scale);
+
+      return texture(feed, vec2(u, w)).rgb.mul(weight);
+    })();
+  }
+
+  // Switch the video that is reflected (null disables it).
+  setReflectionVideo(video: HTMLVideoElement | null): void {
+    this.reflectionFeed.setVideo(video);
+  }
+
+  private updateReflection(): void {
+    const { reflection } = this.config;
+
+    if (!reflection.enabled) {
+      return;
+    }
+
+    this.reflectionFeed.update();
+
+    const ready = this.reflectionFeed.ready;
+
+    this.reflectionIntensity.value = ready ? reflection.intensity : 0;
+
+    if (ready) {
+      // Vertical coverage follows the feed's aspect ratio.
+      const halfX = THREE.MathUtils.degToRad(reflection.fieldOfView) / 2;
+
+      this.reflectionHalfAngle.value.set(halfX, halfX / this.reflectionFeed.aspect);
+    }
   }
 
   // --------------------------------------------------------
@@ -413,6 +534,8 @@ export class EyeScene {
 
     this.eyeGroup.rotation.y = yaw;
     this.eyeGroup.rotation.x = pitch;
+
+    this.updateReflection();
 
     this.renderer.render(this.scene, this.camera);
   }

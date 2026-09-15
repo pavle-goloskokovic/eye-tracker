@@ -18,6 +18,7 @@ detected, the eye locks onto that person and follows them.
 - 3D eye rendered with Three.js on WebGPU, falling back to WebGL
 - GLB model with base colour and normal-map textures
 - Physically based transmissive outer shell (optional cheap mode)
+- The camera feed is reflected on the eye, so people see themselves in it
 - Smooth eye tracking with dead zone, perspective curve and micro-saccades
 - Multiple people tracked separately; newcomers get attention first, then
   focus rotates between people at random intervals
@@ -138,6 +139,10 @@ fall back to the defaults in `src/config.ts`.
   Raise them if phantom faces appear, lower them if real faces are missed.
 - `tracking.matchDistance`, `detectWidth/Height`, `faceTimeoutSeconds` and
   `mirror` tune the rest of the tracker.
+- `reflection.*` reflects the tracking camera feed on the eye, so viewers see
+  themselves in it. `intensity` sets the overall brightness, `centerStrength`
+  and `rimStrength` shape the Fresnel falloff, `fieldOfView` sets how much of
+  the eye the feed wraps around, and `enabled: false` turns it off.
 - `motion.smoothingNear` / `smoothingFar` control how quickly the eye moves
   for small corrections and for big glances. `motion.microSaccade*` add tiny
   random fixation shifts; set the amplitude to `0` to disable them.

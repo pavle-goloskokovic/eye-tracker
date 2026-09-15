@@ -94,6 +94,7 @@ async function main(): Promise<void> {
       source = next;
 
       tracker.reset();
+      eye.setReflectionVideo(next.video);
 
       console.log('Tracking source:', next.label);
     });

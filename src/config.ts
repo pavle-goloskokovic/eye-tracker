@@ -101,6 +101,32 @@ export interface Config {
     fontSizePx: number;
   };
 
+  reflection: {
+    // Reflect the tracking camera feed on the eye, as if the
+    // viewer were standing in front of a glossy sphere.
+    enabled: boolean;
+
+    // Overall brightness of the reflection (0..1).
+    intensity: number;
+
+    // Reflection strength when looking straight at the eye
+    // (centre) and the extra strength added toward the rim.
+    centerStrength: number;
+    rimStrength: number;
+
+    // Horizontal angle (degrees) the feed is wrapped over around
+    // the eye. The model's cornea is a flat disc, so it reflects
+    // only a narrow cone (about ±11°) around the centre; ~60 puts
+    // a whole face on the iris, larger values shrink it.
+    fieldOfView: number;
+
+    // Camera frames are drawn into a canvas this wide (16:9).
+    feedMaxWidth: number;
+
+    // Mirror the feed so it behaves like a real mirror image.
+    mirror: boolean;
+  };
+
   rendering: {
     // Outer eye shell material:
     //   true   physically based transmissive glass (heavier)
@@ -169,6 +195,15 @@ export const DEFAULT_CONFIG: Config = {
     message: 'IM LOOKING AT YOU.',
     charDelaySeconds: 0.08,
     fontSizePx: 48,
+  },
+  reflection: {
+    enabled: true,
+    intensity: 0.7,
+    centerStrength: 0.35,
+    rimStrength: 0.5,
+    fieldOfView: 60,
+    feedMaxWidth: 512,
+    mirror: true,
   },
   rendering: {
     transmission: 'auto',
