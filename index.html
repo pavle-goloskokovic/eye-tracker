@@ -6,6 +6,27 @@
     <title>EyeTracker</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%234a6cd8'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23000'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/style.css" />
+
+    <!--
+      Preload hints: without these the browser only discovers the
+      model, textures and detector runtime after the JS bundle has
+      loaded and run. The crossorigin attribute must match how each
+      file is later requested (fetch / Three's ImageLoader), or the
+      preload is wasted and the file downloads twice.
+    -->
+    <link rel="preload" href="/config.json" as="fetch" crossorigin />
+    <link rel="preload" href="/assets/eye.glb" as="fetch" crossorigin />
+    <link rel="preload" href="/assets/eye_basecolor.webp" as="image" crossorigin />
+    <link rel="preload" href="/assets/eye_normal.webp" as="image" crossorigin />
+    <link rel="preload" href="/assets/fonts/pixel.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="/models/blaze_face_short_range.tflite" as="fetch" crossorigin />
+    <link
+      rel="preload"
+      href="/mediapipe/wasm/vision_wasm_internal.wasm"
+      as="fetch"
+      crossorigin
+      fetchpriority="low"
+    />
   </head>
   <body>
     <div id="app"></div>
