@@ -175,7 +175,9 @@ export class EyeScene {
   private createLights(): void {
     // Original: point light at (1.5, 2.0, 3.5), ambient 0.30,
     // diffuse 0.75, tight specular highlight.
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    const { lighting } = this.config;
+
+    const key = new THREE.DirectionalLight(0xffffff, lighting.key);
 
     key.position.set(1.5, 2.0, 3.5);
     key.target.position.set(0, 0, 0);
@@ -183,13 +185,13 @@ export class EyeScene {
     this.scene.add(key);
     this.scene.add(key.target);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambient = new THREE.AmbientLight(0xffffff, lighting.ambient);
 
     this.scene.add(ambient);
 
     // A soft fill from behind the camera keeps the far side of
     // the eyeball from going fully black when it turns.
-    const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+    const fill = new THREE.DirectionalLight(0xffffff, lighting.fill);
 
     fill.position.set(-1.0, -0.5, 3.0);
 
@@ -221,7 +223,7 @@ export class EyeScene {
         this.config.rendering.normalScale,
         this.config.rendering.normalScale,
       ),
-      roughness: 0.3,
+      roughness: this.config.lighting.roughness,
       metalness: 0.0,
     });
 

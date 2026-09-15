@@ -162,6 +162,9 @@ fall back to the defaults in `src/config.ts`.
 - `rendering.maxPixelRatio` limits the device pixel ratio. Use `1` on a
   Raspberry Pi driving a 1080p display.
 - `rendering.forceWebGL` disables WebGPU.
+- `lighting.ambient`, `key` and `fill` are the light intensities (defaults
+  0.25, 2.4 and 0.2, matching the original shader's lit range), and
+  `lighting.roughness` sets the eyeball's highlight tightness (default 0.2).
 
 ## Deploying to GitHub Pages
 

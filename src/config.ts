@@ -149,6 +149,18 @@ export interface Config {
     // Frame rate cap for rendering. 0 = display refresh rate.
     maxFps: number;
   };
+
+  lighting: {
+    // Light intensities. The original C++ shader used 0.30 ambient
+    // and up to 0.75 diffuse in gamma space; these defaults give
+    // the same lit range in Three's linear workflow.
+    ambient: number;
+    key: number;
+    fill: number;
+
+    // Eyeball surface roughness (0..1). Lower = tighter highlight.
+    roughness: number;
+  };
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -215,6 +227,12 @@ export const DEFAULT_CONFIG: Config = {
     forceWebGL: false,
     maxPixelRatio: 1.5,
     maxFps: 30,
+  },
+  lighting: {
+    ambient: 0.25,
+    key: 2.4,
+    fill: 0.2,
+    roughness: 0.2,
   },
 };
 
