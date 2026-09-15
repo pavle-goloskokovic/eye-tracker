@@ -3,6 +3,8 @@
 EyeTracker is a browser-based interactive display that renders a 3D eye which
 follows people seen by a camera.
 
+<img width="1920" height="925" alt="image" src="https://github.com/user-attachments/assets/64a7c428-54a0-4826-ab2b-00662c22f6cf" />
+
 It combines real-time face detection, Three.js rendering (WebGPU with WebGL
 fallback), background video playback and a typewriter text overlay to create an
 eye that appears to watch people as they move in front of the display.
