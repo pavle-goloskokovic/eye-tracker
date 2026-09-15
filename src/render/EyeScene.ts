@@ -362,6 +362,8 @@ export class EyeScene {
     this.reflectionFeed.setVideo(video);
   }
 
+  private lastReflectionUpdate = 0;
+
   private updateReflection(): void {
     const { reflection } = this.config;
 
@@ -369,7 +371,14 @@ export class EyeScene {
       return;
     }
 
-    this.reflectionFeed.update();
+    // Throttle uploads; the reflection is a soft secondary effect.
+    const now = performance.now();
+    const interval = reflection.updateFps > 0 ? 1000 / reflection.updateFps : 0;
+
+    if (now - this.lastReflectionUpdate >= interval - 1) {
+      this.lastReflectionUpdate = now;
+      this.reflectionFeed.update();
+    }
 
     const ready = this.reflectionFeed.ready;
 

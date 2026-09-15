@@ -120,8 +120,11 @@ export interface Config {
     // a whole face on the iris, larger values shrink it.
     fieldOfView: number;
 
-    // Camera frames are drawn into a canvas this wide (16:9).
+    // Camera frames are drawn into a canvas this wide (16:9) and
+    // uploaded at most this many times per second. The reflection
+    // shows only a patch of the frame, so both can stay low.
     feedMaxWidth: number;
+    updateFps: number;
 
     // Mirror the feed so it behaves like a real mirror image.
     mirror: boolean;
@@ -202,7 +205,8 @@ export const DEFAULT_CONFIG: Config = {
     centerStrength: 0.35,
     rimStrength: 0.5,
     fieldOfView: 60,
-    feedMaxWidth: 512,
+    feedMaxWidth: 320,
+    updateFps: 15,
     mirror: true,
   },
   rendering: {

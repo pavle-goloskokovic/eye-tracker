@@ -142,7 +142,8 @@ fall back to the defaults in `src/config.ts`.
 - `reflection.*` reflects the tracking camera feed on the eye, so viewers see
   themselves in it. `intensity` sets the overall brightness, `centerStrength`
   and `rimStrength` shape the Fresnel falloff, `fieldOfView` sets how much of
-  the eye the feed wraps around, and `enabled: false` turns it off.
+  the eye the feed wraps around, `feedMaxWidth` and `updateFps` bound the
+  upload cost (defaults 320 and 15), and `enabled: false` turns it off.
 - `motion.smoothingNear` / `smoothingFar` control how quickly the eye moves
   for small corrections and for big glances. `motion.microSaccade*` add tiny
   random fixation shifts; set the amplitude to `0` to disable them.

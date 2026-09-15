@@ -24,15 +24,73 @@ function element<T extends HTMLElement>(id: string): T {
 
 async function main(): Promise<void> {
   const loading = element('loading');
+  const loadingText = element('loading-text');
+  const loadingBar = element('loading-bar');
 
-  const setStatus = (message: string, error = false) => {
-    loading.textContent = message;
+  // ------------------------------------------------------
+  // Loading progress
+  //
+  // The stages give no byte-level progress (the detector's WASM
+  // runtime loads inside MediaPipe), so each stage owns a share
+  // of the bar sized by how long it typically takes, and the bar
+  // creeps toward the end of the current stage while waiting.
+  // ------------------------------------------------------
+
+  const stages = [
+    { label: 'Loading configuration…', weight: 2, seconds: 0.2 },
+    { label: 'Starting renderer…', weight: 10, seconds: 1.5 },
+    { label: 'Loading backgrounds…', weight: 5, seconds: 0.5 },
+    { label: 'Loading face detector…', weight: 68, seconds: 5 },
+    { label: 'Starting camera…', weight: 15, seconds: 1.5 },
+  ];
+
+  const totalWeight = stages.reduce((sum, stage) => sum + stage.weight, 0);
+
+  let stageIndex = -1;
+  let stageStart = 0;
+  let creepTimer = 0;
+
+  const renderProgress = () => {
+    const stage = stages[stageIndex];
+    const before = stages.slice(0, stageIndex).reduce((sum, s) => sum + s.weight, 0);
+    const elapsed = (performance.now() - stageStart) / 1000;
+
+    // Approach the end of the stage without reaching it.
+    const within = 1 - Math.exp(-elapsed / stage.seconds);
+    const percent = ((before + stage.weight * within) / totalWeight) * 100;
+
+    loadingBar.style.width = `${percent.toFixed(1)}%`;
+    loadingText.textContent = `${stage.label} ${Math.min(99, Math.round(percent))}%`;
+  };
+
+  const setStage = (index: number) => {
+    stageIndex = index;
+    stageStart = performance.now();
     loading.hidden = false;
-    loading.classList.toggle('error', error);
+    loading.classList.remove('error');
+
+    window.clearInterval(creepTimer);
+    creepTimer = window.setInterval(renderProgress, 100);
+
+    renderProgress();
+  };
+
+  const finishLoading = () => {
+    window.clearInterval(creepTimer);
+    loadingBar.style.width = '100%';
+    loadingText.textContent = 'Ready';
+    loading.hidden = true;
+  };
+
+  const showError = (message: string) => {
+    window.clearInterval(creepTimer);
+    loading.hidden = false;
+    loading.classList.add('error');
+    loadingText.textContent = `Error: ${message}`;
   };
 
   try {
-    setStatus('Loading configuration…');
+    setStage(0);
 
     const config = await loadConfig();
 
@@ -40,7 +98,7 @@ async function main(): Promise<void> {
     // Renderer
     // ----------------------------------------------------
 
-    setStatus('Starting renderer…');
+    setStage(1);
 
     const eye = new EyeScene(element('app'), config);
 
@@ -50,7 +108,7 @@ async function main(): Promise<void> {
     // Background playlist
     // ----------------------------------------------------
 
-    setStatus('Loading backgrounds…');
+    setStage(2);
 
     // On WebGPU, upload video frames via a canvas: Three binds
     // videos as external textures there, which Firefox's WebGPU
@@ -71,7 +129,7 @@ async function main(): Promise<void> {
     // Face tracker
     // ----------------------------------------------------
 
-    setStatus('Loading face detector…');
+    setStage(3);
 
     const tracker = new FaceTracker(config.tracking);
 
@@ -169,21 +227,21 @@ async function main(): Promise<void> {
       eye.render(face);
     });
 
-    loading.hidden = true;
-
     console.log(`EyeTracker ready: ${eye.backend} renderer, ${tracker.backend} detector`);
 
     // ----------------------------------------------------
     // Start the remembered source (webcam by default)
     // ----------------------------------------------------
 
+    setStage(4);
+
     await picker.autoStart();
+
+    finishLoading();
   } catch (error) {
     console.error(error);
 
-    const message = error instanceof Error ? error.message : String(error);
-
-    setStatus(`Error: ${message}`, true);
+    showError(error instanceof Error ? error.message : String(error));
   }
 }
 
